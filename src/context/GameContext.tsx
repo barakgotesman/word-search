@@ -62,8 +62,9 @@ function buildConfigFromPreset(preset: PuzzlePreset): GameConfig {
     .filter(cat => preset.selectedCategories.includes(cat.label))
     .flatMap(cat => cat.words);
 
-  // Merge, deduplicate, Fisher-Yates shuffle
-  const pool = [...new Set([...customWords, ...categoryWords])];
+  // Merge, deduplicate, drop words that can't fit in the grid, Fisher-Yates shuffle
+  const pool = [...new Set([...customWords, ...categoryWords])]
+    .filter(w => w.length <= preset.gridSize);
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];

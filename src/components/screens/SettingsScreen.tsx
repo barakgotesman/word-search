@@ -31,6 +31,19 @@ const ALL_DIRECTIONS: { key: DirectionKey; label: string }[] = [
 
 const MAX_CUSTOM_WORDS = 15;
 
+// 3×3 compass matrix — null = center origin cell, others map to a DirectionKey
+const COMPASS_CELLS: ({ key: DirectionKey; arrow: string; label: string } | null)[] = [
+  { key: 'up-right',   arrow: '↗', label: 'אלכסון ↗' },
+  { key: 'up',         arrow: '↑', label: 'למעלה'    },
+  { key: 'up-left',    arrow: '↖', label: 'אלכסון ↖' },
+  { key: 'right',      arrow: '→', label: 'ימינה'    },
+  null,
+  { key: 'left',       arrow: '←', label: 'שמאלה'   },
+  { key: 'down-right', arrow: '↘', label: 'אלכסון ↘' },
+  { key: 'down',       arrow: '↓', label: 'למטה'     },
+  { key: 'down-left',  arrow: '↙', label: 'אלכסון ↙' },
+];
+
 const DEFAULT_DIRECTIONS: DirectionKey[] = [
   'right', 'left', 'down', 'up',
   'down-right', 'down-left', 'up-right', 'up-left',
@@ -134,6 +147,11 @@ export default function SettingsScreen() {
     return [...new Set(
       customInput.split(/[\n,،\s]+/).map(w => w.trim()).filter(w => w.length >= 2)
     )].slice(0, MAX_CUSTOM_WORDS);
+  }
+
+  // Words that are too long to fit in the selected grid size
+  function tooLongWords(): string[] {
+    return parsedCustomWords().filter(w => w.length > gridSize);
   }
 
   function handleSave() {
@@ -395,32 +413,76 @@ export default function SettingsScreen() {
               />
               {parsedCustomWords().length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-1.5">
-                  {parsedCustomWords().map(w => (
-                    <span key={w} className="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-0.5 rounded-lg">{w}</span>
-                  ))}
+                  {parsedCustomWords().map(w => {
+                    const tooLong = w.length > gridSize;
+                    return (
+                      <span
+                        key={w}
+                        title={tooLong ? `המילה ארוכה מדי ללוח ${gridSize}×${gridSize}` : undefined}
+                        className={`text-xs font-bold px-2 py-0.5 rounded-lg ${
+                          tooLong
+                            ? 'bg-red-100 text-red-500 line-through'
+                            : 'bg-orange-100 text-orange-700'
+                        }`}
+                      >
+                        {w}
+                      </span>
+                    );
+                  })}
                 </div>
+              )}
+              {tooLongWords().length > 0 && (
+                <p className="text-xs text-red-500 font-bold mt-1.5">
+                  ⚠️ {tooLongWords().length === 1
+                    ? `המילה "${tooLongWords()[0]}" ארוכה מדי ללוח ${gridSize}×${gridSize} ולא תופיע במשחק`
+                    : `${tooLongWords().length} מילים ארוכות מדי ללוח ${gridSize}×${gridSize} ולא יופיעו במשחק`
+                  }
+                </p>
               )}
             </div>
 
-            {/* Directions */}
+            {/* Directions — 3×3 compass matrix */}
             <div className="mb-6">
               <label className="text-sm font-bold text-gray-600 block mb-2">כיוונים מותרים</label>
-              <div className="grid grid-cols-2 gap-1.5">
-                {ALL_DIRECTIONS.map(({ key, label }) => {
-                  const active = directions.includes(key);
-                  return (
-                    <button
-                      key={key}
-                      onClick={() => { playClick(); toggleDirection(key); }}
-                      onMouseEnter={playHover}
-                      className={`px-3 py-2 rounded-xl border-2 font-bold text-sm transition-all text-right bg-white ${
-                        active ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-400 hover:border-orange-200'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
+              <div className="flex items-center justify-center gap-4">
+                {/* 3×3 grid: each cell is a direction, center is the origin dot */}
+                <div className="grid grid-cols-3 gap-1.5">
+                  {COMPASS_CELLS.map(cell => {
+                    if (cell === null) {
+                      // Center cell — non-interactive origin
+                      return (
+                        <div
+                          key="center"
+                          className="w-11 h-11 flex items-center justify-center rounded-xl bg-orange-100"
+                        >
+                          <div className="w-2.5 h-2.5 rounded-full bg-orange-400" />
+                        </div>
+                      );
+                    }
+                    const active = directions.includes(cell.key);
+                    return (
+                      <button
+                        key={cell.key}
+                        onClick={() => { playClick(); toggleDirection(cell.key); }}
+                        onMouseEnter={playHover}
+                        title={cell.label}
+                        className={`w-11 h-11 flex items-center justify-center rounded-xl text-xl border-2 transition-all active:scale-90 ${
+                          active
+                            ? 'border-orange-400 bg-orange-50 text-orange-500'
+                            : 'border-gray-200 bg-white text-gray-300 hover:border-orange-200 hover:text-gray-400'
+                        }`}
+                      >
+                        {cell.arrow}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Legend: how many directions are active */}
+                <div className="text-sm text-gray-500 leading-relaxed">
+                  <p className="font-bold text-gray-700">{directions.length} כיוונים</p>
+                  <p className="text-xs">לחץ על החצים<br />להפעלה/כיבוי</p>
+                </div>
               </div>
             </div>
 
