@@ -106,13 +106,21 @@ export default function GameBoard() {
   );
 }
 
-/** Compact horizontal word chip strip for mobile */
+// Number of word chips shown per page in the mobile strip
+const WORDS_PER_PAGE = 5;
+
+/** Compact paginated word strip for mobile — shows arrows so kids know there are more words */
 function MobileWordStrip({ placedWords }: { placedWords: ReturnType<typeof useGame>['placedWords'] }) {
   const { revealWord } = useGame();
   const [pendingWord, setPendingWord] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
 
   const found = placedWords.filter(w => w.found).length;
   const total = placedWords.length;
+  const totalPages = Math.ceil(total / WORDS_PER_PAGE);
+  // Clamp page in case word count changes
+  const safePage = Math.min(page, totalPages - 1);
+  const pageWords = placedWords.slice(safePage * WORDS_PER_PAGE, (safePage + 1) * WORDS_PER_PAGE);
 
   function confirmReveal() {
     if (pendingWord) revealWord(pendingWord);
@@ -122,10 +130,12 @@ function MobileWordStrip({ placedWords }: { placedWords: ReturnType<typeof useGa
   return (
     <>
       <div dir="rtl">
+        {/* Header row */}
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-xs font-bold text-gray-500">מילים למצוא</span>
           <span className="text-xs text-gray-400">{found}/{total}</span>
         </div>
+
         {/* Progress bar */}
         <div className="w-full bg-gray-100 rounded-full h-1 mb-2">
           <div
@@ -133,26 +143,64 @@ function MobileWordStrip({ placedWords }: { placedWords: ReturnType<typeof useGa
             style={{ width: total > 0 ? `${(found / total) * 100}%` : '0%', backgroundColor: '#4ECDC4' }}
           />
         </div>
-        {/* Horizontal scrollable word chips */}
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
-          {placedWords.map(({ word, found: isFound, color }) => (
-            <button
-              key={word}
-              onClick={() => !isFound && setPendingWord(word)}
-              disabled={isFound}
-              className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                isFound ? 'opacity-50 cursor-default line-through' : 'cursor-pointer active:scale-95'
-              }`}
-              style={{
-                backgroundColor: isFound ? color + '33' : '#F3F4F6',
-                color: isFound ? color : '#374151',
-                borderRight: `3px solid ${isFound ? color : 'transparent'}`,
-              }}
-            >
-              {word}
-            </button>
-          ))}
+
+        {/* Paginated word chips with arrow buttons — left=previous, right=next */}
+        <div className="flex items-center gap-1">
+          {/* Left arrow — previous page */}
+          <button
+            onClick={() => setPage(p => Math.max(0, p - 1))}
+            disabled={safePage === 0}
+            className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-indigo-100 text-indigo-500 font-bold text-base disabled:opacity-20 active:scale-90 transition"
+            aria-label="עמוד קודם"
+          >
+            ‹
+          </button>
+
+          {/* Word chips for current page */}
+          <div className="flex-1 flex gap-1.5 justify-center flex-wrap">
+            {pageWords.map(({ word, found: isFound, color }) => (
+              <button
+                key={word}
+                onClick={() => !isFound && setPendingWord(word)}
+                disabled={isFound}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                  isFound ? 'opacity-50 cursor-default line-through' : 'cursor-pointer active:scale-95'
+                }`}
+                style={{
+                  backgroundColor: isFound ? color + '33' : '#F3F4F6',
+                  color: isFound ? color : '#374151',
+                  borderRight: `3px solid ${isFound ? color : 'transparent'}`,
+                }}
+              >
+                {word}
+              </button>
+            ))}
+          </div>
+
+          {/* Right arrow — next page */}
+          <button
+            onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+            disabled={safePage >= totalPages - 1}
+            className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-indigo-100 text-indigo-500 font-bold text-base disabled:opacity-20 active:scale-90 transition"
+            aria-label="עמוד הבא"
+          >
+            ›
+          </button>
         </div>
+
+        {/* Page dots */}
+        {totalPages > 1 && (
+          <div className="flex justify-center gap-1 mt-1.5">
+            {Array.from({ length: totalPages }).map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setPage(i)}
+                className="w-1.5 h-1.5 rounded-full transition-all"
+                style={{ backgroundColor: i === safePage ? '#6366f1' : '#d1d5db' }}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Confirmation popup */}
