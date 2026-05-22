@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../../context/GameContext';
 import PuzzleGrid from '../ui/PuzzleGrid';
@@ -80,11 +80,16 @@ export default function GameBoard() {
         </div>
       </div>
 
-      {/* ── Mobile layout: grid on top, compact word strip at bottom ── */}
+      {/* ── Mobile layout: word strip above, grid fills remaining space ── */}
       <div className="lg:hidden flex flex-col flex-1 min-h-0 px-3 pb-3 gap-2">
-        {/* Grid — scrollable if it overflows */}
-        <div className="flex-1 min-h-0 flex items-center justify-center overflow-auto">
-          <div className="bg-white rounded-2xl shadow-md p-2 flex-shrink-0">
+        {/* Word strip — compact, sits naturally at top */}
+        <div className="flex-shrink-0 bg-white rounded-2xl shadow-md px-3 py-2">
+          <MobileWordStrip placedWords={placedWords} />
+        </div>
+
+        {/* Grid — fills remaining space, centered */}
+        <div className="flex-1 min-h-0 flex items-center justify-center">
+          <div className="bg-white rounded-2xl shadow-md p-2">
             <PuzzleGrid
               grid={puzzle.grid}
               gridSize={puzzle.gridSize}
@@ -96,11 +101,6 @@ export default function GameBoard() {
             />
           </div>
         </div>
-
-        {/* Word list — compact horizontal strip */}
-        <div className="flex-shrink-0 bg-white rounded-2xl shadow-md px-3 py-2">
-          <MobileWordStrip placedWords={placedWords} />
-        </div>
       </div>
     </div>
   );
@@ -109,42 +109,87 @@ export default function GameBoard() {
 /** Compact horizontal word chip strip for mobile */
 function MobileWordStrip({ placedWords }: { placedWords: ReturnType<typeof useGame>['placedWords'] }) {
   const { revealWord } = useGame();
+  const [pendingWord, setPendingWord] = useState<string | null>(null);
+
   const found = placedWords.filter(w => w.found).length;
   const total = placedWords.length;
 
+  function confirmReveal() {
+    if (pendingWord) revealWord(pendingWord);
+    setPendingWord(null);
+  }
+
   return (
-    <div dir="rtl">
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs font-bold text-gray-500">מילים למצוא</span>
-        <span className="text-xs text-gray-400">{found}/{total}</span>
+    <>
+      <div dir="rtl">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-xs font-bold text-gray-500">מילים למצוא</span>
+          <span className="text-xs text-gray-400">{found}/{total}</span>
+        </div>
+        {/* Progress bar */}
+        <div className="w-full bg-gray-100 rounded-full h-1 mb-2">
+          <div
+            className="h-1 rounded-full transition-all duration-500"
+            style={{ width: total > 0 ? `${(found / total) * 100}%` : '0%', backgroundColor: '#4ECDC4' }}
+          />
+        </div>
+        {/* Horizontal scrollable word chips */}
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
+          {placedWords.map(({ word, found: isFound, color }) => (
+            <button
+              key={word}
+              onClick={() => !isFound && setPendingWord(word)}
+              disabled={isFound}
+              className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                isFound ? 'opacity-50 cursor-default line-through' : 'cursor-pointer active:scale-95'
+              }`}
+              style={{
+                backgroundColor: isFound ? color + '33' : '#F3F4F6',
+                color: isFound ? color : '#374151',
+                borderRight: `3px solid ${isFound ? color : 'transparent'}`,
+              }}
+            >
+              {word}
+            </button>
+          ))}
+        </div>
       </div>
-      {/* Progress bar */}
-      <div className="w-full bg-gray-100 rounded-full h-1 mb-2">
+
+      {/* Confirmation popup */}
+      {pendingWord && (
         <div
-          className="h-1 rounded-full transition-all duration-500"
-          style={{ width: total > 0 ? `${(found / total) * 100}%` : '0%', backgroundColor: '#4ECDC4' }}
-        />
-      </div>
-      {/* Horizontal scrollable word chips */}
-      <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
-        {placedWords.map(({ word, found: isFound, color }) => (
-          <button
-            key={word}
-            onClick={() => !isFound && revealWord(word)}
-            disabled={isFound}
-            className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-              isFound ? 'opacity-50 cursor-default line-through' : 'cursor-pointer active:scale-95'
-            }`}
-            style={{
-              backgroundColor: isFound ? color + '33' : '#F3F4F6',
-              color: isFound ? color : '#374151',
-              borderRight: `3px solid ${isFound ? color : 'transparent'}`,
-            }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={() => setPendingWord(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl p-6 max-w-xs w-full mx-4 text-center"
+            dir="rtl"
+            onClick={e => e.stopPropagation()}
           >
-            {word}
-          </button>
-        ))}
-      </div>
-    </div>
+            <div className="text-3xl mb-3">🤔</div>
+            <p className="text-gray-700 font-semibold text-base mb-1">
+              נראה שקשה לך למצוא את המילה
+            </p>
+            <p className="text-gray-500 text-sm mb-5">
+              רוצה שאני אמצא את <span className="font-bold text-indigo-600">{pendingWord}</span> בשבילך?
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={confirmReveal}
+                className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold px-5 py-2 rounded-xl transition"
+              >
+                כן, תמצא
+              </button>
+              <button
+                onClick={() => setPendingWord(null)}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold px-5 py-2 rounded-xl transition"
+              >
+                אני ממשיך לנסות
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

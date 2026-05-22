@@ -5,14 +5,23 @@ import { isMusicMuted, toggleMusic, startMusic } from '../../utils/music';
 export default function MusicButton() {
   const [muted, setMuted] = useState(isMusicMuted);
 
-  // Start music on first user interaction with the page
+  // Start music on first user interaction — listen to multiple event types
+  // because iOS Safari only honours audio.play() inside touchstart/click handlers
   useEffect(() => {
     function handleFirstInteraction() {
       startMusic();
+      window.removeEventListener('touchstart', handleFirstInteraction);
       window.removeEventListener('pointerdown', handleFirstInteraction);
+      window.removeEventListener('click', handleFirstInteraction);
     }
+    window.addEventListener('touchstart', handleFirstInteraction, { passive: true });
     window.addEventListener('pointerdown', handleFirstInteraction);
-    return () => window.removeEventListener('pointerdown', handleFirstInteraction);
+    window.addEventListener('click', handleFirstInteraction);
+    return () => {
+      window.removeEventListener('touchstart', handleFirstInteraction);
+      window.removeEventListener('pointerdown', handleFirstInteraction);
+      window.removeEventListener('click', handleFirstInteraction);
+    };
   }, []);
 
   function handleToggle() {
