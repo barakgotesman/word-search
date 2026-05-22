@@ -21,6 +21,7 @@ export interface PuzzlePreset {
   selectedCategories: string[];  // category label strings e.g. ["חיות", "אוכל"]
   customWords: string;           // raw textarea value — parsed at game-start time
   directions: DirectionKey[];    // allowed word placement directions
+  wordCount: number;             // how many words to include in the puzzle (default 15)
 }
 
 // All 8 directions enabled by default
@@ -62,17 +63,28 @@ function buildConfigFromPreset(preset: PuzzlePreset): GameConfig {
     .filter(cat => preset.selectedCategories.includes(cat.label))
     .flatMap(cat => cat.words);
 
-  // Merge, deduplicate, drop words that can't fit in the grid, Fisher-Yates shuffle
-  const pool = [...new Set([...customWords, ...categoryWords])]
-    .filter(w => w.length <= preset.gridSize);
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
+  // Deduplicate and filter words that can't fit in the grid
+  const customFiltered = [...new Set(customWords)].filter(w => w.length <= preset.gridSize);
+  const categoryFiltered = [...new Set(categoryWords)]
+    .filter(w => !customFiltered.includes(w) && w.length <= preset.gridSize);
+
+  // Shuffle each group independently so custom words always fill slots first
+  const shuffle = <T,>(arr: T[]) => {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  };
+
+  // Custom words go first, category words fill remaining slots up to the user-chosen count
+  const pool = [...shuffle(customFiltered), ...shuffle(categoryFiltered)];
+  const limit = preset.wordCount ?? 15;
 
   return {
     gridSize: preset.gridSize,
-    words: pool.slice(0, 15),
+    words: pool.slice(0, limit),
     allowedDirections: preset.directions,
   };
 }
@@ -151,11 +163,30 @@ export function GameProvider({ children }: { children: ReactNode }) {
     // Second cell → validate path and check word
     const path = getCellsBetween(selectionStart, cell);
     if (path && path.length >= 2) {
+      // Extract the letters the player actually selected from the grid
+      const selectedLetters = puzzle
+        ? path.map(c => puzzle.grid[c.row][c.col]).join('')
+        : '';
+      const selectedLettersReversed = [...selectedLetters].reverse().join('');
+
       setPlacedWords(prev => {
         const updated = [...prev];
-        const idx = updated.findIndex(
-          w => !w.found && selectionMatchesWord(path, w.cells),
-        );
+        const idx = updated.findIndex(w => {
+          if (w.found) return false;
+          // Accept if cells match exactly (normal case) OR if the selected
+          // letters spell the word — handles accidental duplicate appearances
+          // caused by filler letters or shared letters with other words
+          // Normalize final-form letters in the word for letter-based comparison
+          // (grid always stores normalized letters, but w.word keeps original for display)
+          const normalizedWord = w.word.split('').map(ch =>
+            ({ 'ך':'כ','ם':'מ','ן':'נ','ף':'פ','ץ':'צ' } as Record<string,string>)[ch] ?? ch
+          ).join('');
+          return (
+            selectionMatchesWord(path, w.cells) ||
+            selectedLetters === normalizedWord ||
+            selectedLettersReversed === normalizedWord
+          );
+        });
         if (idx !== -1) {
           updated[idx] = { ...updated[idx], found: true };
           setLastFoundWord(updated[idx].word);
@@ -167,7 +198,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
     setSelectionStart(null);
     setSelectionEnd(null);
-  }, [selectionStart]);
+  }, [selectionStart, puzzle]);
 
   const handleCellHover = useCallback((cell: CellCoord) => {
     if (selectionStart) setSelectionEnd(cell);

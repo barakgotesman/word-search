@@ -20,6 +20,20 @@ const WORD_COLORS = [
 // Hebrew letters (no final forms to avoid confusing young readers)
 const HEBREW_FILLERS = 'אבגדהוזחטיכלמנסעפצקרשת';
 
+// Maps final-form (sofit) letters to their standard equivalents
+const FINAL_FORM_MAP: Record<string, string> = {
+  'ך': 'כ',
+  'ם': 'מ',
+  'ן': 'נ',
+  'ף': 'פ',
+  'ץ': 'צ',
+};
+
+/** Replaces any final-form Hebrew letters in a word with their base forms */
+function normalizeFinalForms(word: string): string {
+  return word.split('').map(ch => FINAL_FORM_MAP[ch] ?? ch).join('');
+}
+
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -92,9 +106,12 @@ export function generatePuzzle(config: GameConfig): Puzzle {
         })),
       );
 
+      // Normalize final-form letters for grid placement only — display word stays original
+      const gridWord = normalizeFinalForms(word);
+
       for (const { row, col } of positions) {
-        if (canPlace(grid, word, row, col, dr, dc, gridSize)) {
-          const cells = placeWord(grid, word, row, col, dr, dc);
+        if (canPlace(grid, gridWord, row, col, dr, dc, gridSize)) {
+          const cells = placeWord(grid, gridWord, row, col, dr, dc);
           placedWords.push({
             word,
             cells,

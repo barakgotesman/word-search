@@ -19,7 +19,10 @@ const SIZE_OPTIONS: SizeOption[] = [
 ];
 
 
-const MAX_CUSTOM_WORDS = 15;
+/** How many words can realistically fit in an N×N grid (generous upper bound) */
+function maxWordsForGrid(size: number): number {
+  return Math.floor(size * size / 4);
+}
 
 // 3×3 compass matrix — null = center origin cell, others map to a DirectionKey
 const COMPASS_CELLS: ({ key: DirectionKey; arrow: string; label: string } | null)[] = [
@@ -84,6 +87,7 @@ export default function SettingsScreen() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [customInput, setCustomInput] = useState('');
   const [directions, setDirections] = useState<DirectionKey[]>(DEFAULT_DIRECTIONS);
+  const [wordCount, setWordCount] = useState(15);
 
   const [saved, setSaved] = useState(false);
 
@@ -104,6 +108,7 @@ export default function SettingsScreen() {
     setSelectedCategories(preset.selectedCategories);
     setCustomInput(preset.customWords);
     setDirections(preset.directions);
+    setWordCount(preset.wordCount ?? 15);
     setSaved(false);
     setDrawerOpen(false); // close drawer on mobile after selecting
   }
@@ -116,6 +121,7 @@ export default function SettingsScreen() {
     setSelectedCategories([]);
     setCustomInput('');
     setDirections(DEFAULT_DIRECTIONS);
+    setWordCount(15);
     setSaved(false);
     setDrawerOpen(false);
   }
@@ -136,7 +142,7 @@ export default function SettingsScreen() {
   function parsedCustomWords(): string[] {
     return [...new Set(
       customInput.split(/[\n,،\s]+/).map(w => w.trim()).filter(w => w.length >= 2)
-    )].slice(0, MAX_CUSTOM_WORDS);
+    )];
   }
 
   // Words that are too long to fit in the selected grid size
@@ -153,7 +159,7 @@ export default function SettingsScreen() {
     if (editingId) {
       updated = presets.map(p =>
         p.id === editingId
-          ? { ...p, name, emoji, gridSize, selectedCategories, customWords: customInput, directions }
+          ? { ...p, name, emoji, gridSize, selectedCategories, customWords: customInput, directions, wordCount }
           : p
       );
     } else {
@@ -163,6 +169,7 @@ export default function SettingsScreen() {
         selectedCategories,
         customWords: customInput,
         directions,
+        wordCount,
       };
       updated = [...presets, newPreset];
       savedId = newPreset.id;
@@ -354,7 +361,7 @@ export default function SettingsScreen() {
                 {SIZE_OPTIONS.map(opt => (
                   <button
                     key={opt.size}
-                    onClick={() => { playClick(); setGridSize(opt.size); }}
+                    onClick={() => { playClick(); setGridSize(opt.size); setWordCount(wc => Math.min(wc, maxWordsForGrid(opt.size))); }}
                     onMouseEnter={playHover}
                     className={`rounded-xl p-2.5 text-center border-2 transition-all bg-white ${
                       gridSize === opt.size ? 'border-orange-400 bg-orange-50' : 'border-gray-200 hover:border-orange-200'
@@ -364,6 +371,30 @@ export default function SettingsScreen() {
                     <div className="text-xs text-gray-400">{opt.desc}</div>
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Word count */}
+            <div className="mb-5">
+              <label className="text-sm font-bold text-gray-600 block mb-1">מספר מילים בתפזורת</label>
+              <p className="text-xs text-gray-400 mb-2">
+                לוח {gridSize}×{gridSize} יכול להכיל עד כ־{maxWordsForGrid(gridSize)} מילים
+              </p>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min={1}
+                  max={maxWordsForGrid(gridSize)}
+                  value={wordCount}
+                  onChange={e => {
+                    const v = Math.max(1, Math.min(maxWordsForGrid(gridSize), Number(e.target.value)));
+                    setWordCount(v);
+                  }}
+                  className="w-24 border-2 border-gray-200 rounded-xl px-3 py-2 font-black text-gray-700 text-center focus:outline-none focus:border-orange-400 bg-white"
+                />
+                <span className="text-sm text-gray-500">
+                  {wordCount === 15 ? 'ברירת מחדל' : wordCount > maxWordsForGrid(gridSize) ? '⚠️ ייתכן שלא כל המילים יוצבו' : ''}
+                </span>
               </div>
             </div>
 
@@ -393,7 +424,7 @@ export default function SettingsScreen() {
             {/* Custom words */}
             <div className="mb-5">
               <label className="text-sm font-bold text-gray-600 block mb-1">מילים משלי</label>
-              <p className="text-xs text-gray-400 mb-2">מופרדות בפסיק או שורה חדשה (עד {MAX_CUSTOM_WORDS})</p>
+              <p className="text-xs text-gray-400 mb-2">מופרדות בפסיק או שורה חדשה</p>
               <textarea
                 value={customInput}
                 onChange={e => setCustomInput(e.target.value)}
@@ -489,7 +520,7 @@ export default function SettingsScreen() {
                     : 'bg-gray-200 text-gray-400 cursor-not-allowed'
               }`}
             >
-              {saved ? 'נשמר ✓' : canSave ? `שמור (${Math.min(totalWords, 15)} מילים)` : 'הכנס שם ומילים כדי לשמור'}
+              {saved ? 'נשמר ✓' : canSave ? `שמור (${Math.min(totalWords, wordCount)} מילים)` : 'הכנס שם ומילים כדי לשמור'}
             </button>
           </div>
         </div>
