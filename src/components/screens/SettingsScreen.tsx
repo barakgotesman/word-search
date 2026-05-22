@@ -18,16 +18,6 @@ const SIZE_OPTIONS: SizeOption[] = [
   { size: 12, label: 'גדולה', desc: '12×12' },
 ];
 
-const ALL_DIRECTIONS: { key: DirectionKey; label: string }[] = [
-  { key: 'right',      label: 'ימינה ←'  },
-  { key: 'left',       label: 'שמאלה →' },
-  { key: 'down',       label: 'למטה ↓'   },
-  { key: 'up',         label: 'למעלה ↑'  },
-  { key: 'down-right', label: 'אלכסון ↘' },
-  { key: 'down-left',  label: 'אלכסון ↙' },
-  { key: 'up-right',   label: 'אלכסון ↗' },
-  { key: 'up-left',    label: 'אלכסון ↖' },
-];
 
 const MAX_CUSTOM_WORDS = 15;
 
