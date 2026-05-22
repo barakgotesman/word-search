@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  font-family: 'Heebo', sans-serif;
+}
+
+/* Main menu CTA pulse */
+@keyframes ctaPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
+  50%       { transform: scale(1.04); box-shadow: 0 12px 40px rgba(0,0,0,0.28); }
+}
+
+/* Diagonal ticker rows in MainMenu — scroll left or right continuously */
+@keyframes tickerL {
+  0%   { transform: translateY(-50%) translateX(0); }
+  100% { transform: translateY(-50%) translateX(-33.333%); }
+}
+
+@keyframes tickerR {
+  0%   { transform: translateY(-50%) translateX(-33.333%); }
+  100% { transform: translateY(-50%) translateX(0); }
+}
+
+/* Print styles */
+@page {
+  size: A4 portrait;
+  margin: 1.5cm;
+}
+
+@media print {
+  html, body {
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+
+  /* Stack grid on top, word list below — both centered */
+  .print-area {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 180mm;
+    height: auto !important;
+    min-height: unset !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 1.2rem;
+    background: white;
+    padding: 0.5rem;
+    box-sizing: border-box;
+  }
+
+  /* puzzle grid card — centered, no shadow */
+  .print-area > div:first-child {
+    box-shadow: none !important;
+    padding: 0.25rem !important;
+    align-self: center !important;
+    /* reset screen flex centering so it sizes to content */
+    display: block !important;
+  }
+
+  /* the puzzle inline-grid: keep as grid, fixed cell size */
+  .print-area .inline-grid {
+    display: grid !important;
+    gap: 3px !important;
+  }
+
+  /* cells: 28px each — 12 cols × 28 + 11 × 3 = 369px fits A4 */
+  .print-area button {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    font-size: 14px !important;
+    border-radius: 3px !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+
+  /* word list card — full width below the grid */
+  .print-area > div:last-child {
+    width: 100% !important;
+    align-self: stretch !important;
+  }
+
+  /* word list card internals: no height constraints */
+  .print-area .h-full {
+    height: auto !important;
+  }
+
+  .print-area .flex-1 {
+    flex: none !important;
+    overflow: visible !important;
+  }
+
+  .print-area .shadow-md,
+  .print-area .shadow-sm {
+    box-shadow: none !important;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+}
